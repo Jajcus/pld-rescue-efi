@@ -1,0 +1,42 @@
+#!/bin/sh -ex
+
+[ -f efiboot.img ] && rm efiboot.img
+  
+local mntdir=$(mktemp -d /tmp/$$.XXXXXX)
+trap "rm -rf $mntdir" EXIT INT TERM HUP
+
+
+cylinder=8225280
+
+cyls="$(du -sbcD efiboot new/rescue6.cpi new/custom/custom.cpi /boot/vmlinuz-rescuecd | awk "/total/ { printf(\"%d\",\$1 / $cylinder + 1) }")"
+
+dd if=/dev/zero of=efiboot.img bs=$cylinder count=${cyls}
+
+lodev=$(losetup --partscan --find --show efiboot.img)
+trap "set +e ; losetup -d $lodev; rm -rf $mntdir; rm efiboot.img" EXIT INT TERM HUP
+
+sfdisk "$lodev" <<EOF
+,,e,*
+;
+;
+;
+EOF
+
+dd if=/usr/share/syslinux/mbr.bin of="$lodev"
+
+mkdosfs -F 16 -n "EFIBOOT" "${lodev}p1"
+mount "${lodev}p1" "$mntdir"
+trap "set +e ; umount $mntdir ; losetup -d $lodev; rm -rf $mntdir; rm efiboot.img" EXIT INT TERM HUP
+
+cp -aL efiboot/* "$mntdir/"
+cp efiboot/startup.nsh "$mntdir/EFI/BOOT"
+cat new/rescue6.cpi new/custom/custom.cpi > "$mntdir/initrd.img"
+cp -aL /boot/vmlinuz-rescuecd "$mntdir/vmlinuz.efi"
+find "$mntdir/" -name "*~" | xargs -r rm
+
+set +e
+trap - EXIT INT TERM HUP
+umount $mntdir
+losetup -d $lodev
+rm -rf $mntdir
+

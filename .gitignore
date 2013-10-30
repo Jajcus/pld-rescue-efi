@@ -1,0 +1,10 @@
+*~
+*.iso
+*.img
+
+pld[0-1][0-9][0-9].tar.bz2
+
+/efiboot/elilo.efi
+/efiboot/EFI/BOOT/BOOTX64.EFI
+/new/
+/orig/

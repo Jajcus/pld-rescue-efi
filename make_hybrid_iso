@@ -1,0 +1,18 @@
+#!/bin/sh
+
+VERSION="Unknown RCD"
+VER="Unknown"
+
+eval "$(grep -E '^VER(SION)?=' orig/boot/rcdmod)"
+
+LOG=`mktemp /tmp/make_hybrid_iso.$$.XXXXXX` || exit 1
+echo Save log to $LOG.
+
+cp efiboot.img new/boot/efiboot.img
+
+mkisofs -v -J -R -D -A "${VERSION}_H" -V "${VERSION}_H" -no-emul-boot -boot-info-table \
+-boot-load-size 4 -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.catalog \
+-eltorito-alt-boot -hard-disk-boot -e boot/efiboot.img \
+-A "PLD Linux RescueCD $VER (EFI+legacy)" \
+-p "http://rescuecd.pld-linux.org/" \
+-log-file $LOG  -o "hybrid.iso" new
